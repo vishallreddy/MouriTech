@@ -1,0 +1,130 @@
+import random
+
+# dealer is the ONLY one allowed to pull cards
+# everyone else has to ask him
+
+class Dealer:
+    def draw_card(self):
+        # fake card draw (2 - 11)
+        return random.randint(2, 11)
+
+
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.cards = []
+
+    def total(self):
+        return sum(self.cards)
+
+    def can_take_card(self):
+        # max 3 cards and cant go beyond 21
+        return len(self.cards) < 3 and self.total() < 21
+
+
+class AIPlayer(Player):
+    def decide_next_move(self):
+        """
+        very basic logic here
+        hit if score is low, else chill
+        """
+        if self.total() < 15 and self.can_take_card():
+            return "hit"
+        return "stand"
+
+
+class BlackjackGame:
+    def __init__(self):
+        self.dealer = Dealer()
+
+        self.user = Player("You")
+
+        self.ai_players = [
+            AIPlayer("AI Player 1"),
+            AIPlayer("AI Player 2"),
+            AIPlayer("AI Player 3"),
+        ]
+
+        self.all_players = [self.user] + self.ai_players
+
+    def dealer_draws_for(self, player):
+        card = self.dealer.draw_card()
+        player.cards.append(card)
+        print(
+            f"Dealer gives {player.name} a card: {card}  | total now = {player.total()}"
+        )
+
+    def user_turn(self):
+        print("\n--- Your turn ---")
+
+        while self.user.can_take_card():
+            user_input = input("hit or stand? ").lower().strip()
+
+            if "hit" in user_input or "deal" in user_input:
+                self.dealer_draws_for(self.user)
+
+                if self.user.total() > 21:
+                    print("you busted 😬")
+                    break
+
+            elif "stand" in user_input:
+                print("you decided to stand")
+                break
+            else:
+                print("not sure what u meant, say hit or stand")
+
+    def ai_turn(self, ai_player):
+        print(f"\n--- {ai_player.name}'s turn ---")
+
+        while ai_player.can_take_card():
+            decision = ai_player.decide_next_move()
+            print(f"{ai_player.name} chooses to {decision}")
+
+            if decision == "hit":
+                self.dealer_draws_for(ai_player)
+
+                if ai_player.total() > 21:
+                    print(f"{ai_player.name} busted")
+                    break
+            else:
+                break
+
+    def find_winner(self):
+        print("\n==== Final Scores ====")
+
+        valid_players = []
+        for p in self.all_players:
+            print(f"{p.name}: cards={p.cards} total={p.total()}")
+            if p.total() <= 21:
+                valid_players.append(p)
+
+        if not valid_players:
+            print("\nEveryone busted lol. No winner.")
+            return
+
+        winner = valid_players[0]
+        for p in valid_players:
+            if p.total() > winner.total():
+                winner = p
+
+        print(f"\nWinner is {winner.name} with {winner.total()} 🎉")
+
+    def start_game(self):
+        print("Blackjack (simple AI version)")
+        print("Max 3 cards each. Closest to 21 wins.\n")
+
+        # everyone gets 1 card first
+        for p in self.all_players:
+            self.dealer_draws_for(p)
+
+        self.user_turn()
+
+        for ai in self.ai_players:
+            self.ai_turn(ai)
+
+        self.find_winner()
+
+
+if __name__ == "__main__":
+    game = BlackjackGame()
+    game.start_game()
