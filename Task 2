@@ -1,0 +1,60 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+import redis
+import os
+
+app = FastAPI()
+
+# Redis connection
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+
+r = redis.Redis(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    decode_responses=True
+)
+
+SUM_KEY = "abacus_sum"
+
+
+class NumberPayload(BaseModel):
+    number: float
+
+
+@app.post("/abacus/number")
+def add_number(payload: NumberPayload):
+    """
+    Adds a number to the running sum.
+    Redis INCRBYFLOAT is atomic, so this is safe
+    even if multiple instances hit it at the same time.
+    """
+    try:
+        updated_sum = r.incrbyfloat(SUM_KEY, payload.number)
+        return {"sum": updated_sum}
+    except Exception as e:
+        # keeping this simple on purpose
+        return {"error": str(e)}
+
+
+@app.get("/abacus/sum")
+def get_sum():
+    """
+    Returns the current sum.
+    If the key doesn't exist yet, treat it as 0.
+    """
+    value = r.get(SUM_KEY)
+
+    if value is None:
+        return {"sum": 0.0}
+
+    return {"sum": float(value)}
+
+
+@app.delete("/abacus/sum")
+def reset_sum():
+    """
+    Resets the sum back to zero.
+    """
+    r.set(SUM_KEY, 0)
+    return {"sum": 0.0}
